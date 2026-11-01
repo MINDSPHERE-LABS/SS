@@ -1,21 +1,57 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import WebSocket from 'ws';
 
 const SESSION_ID = process.env.SESSION_ID || 'oneview-live';
-const RELAY_WS_URL = process.env.RELAY_WS_URL || `wss://ss-eb5j.onrender.com/ws?role=athlete&session=${SESSION_ID}`;
-const DEVICE_SERIAL = process.env.ANDROID_SERIAL || '';
+const RELAY_WS_URL =
+  process.env.RELAY_WS_URL || `wss://ss-srnm.onrender.com/ws?role=athlete&session=${SESSION_ID}`;
 
-console.log(`[ADB Bridge] Starting Whole Screen ADB Bridge for session [${SESSION_ID}]...`);
+function getConnectedDeviceSerial(): string {
+  if (process.env.ANDROID_SERIAL) return process.env.ANDROID_SERIAL;
+  try {
+    const output = execSync('adb devices', { encoding: 'utf-8' });
+    const lines = output.split('\n');
+    for (const line of lines) {
+      const parts = line.trim().split(/\s+/);
+      if (parts.length >= 2 && parts[1] === 'device') {
+        return parts[0];
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return '';
+}
+
+const DEVICE_SERIAL = getConnectedDeviceSerial();
+
+console.log(`========================================================`);
+console.log(`🚀 [ADB Silent Bridge] Option B: Zero-Popup Screen Sharing`);
+console.log(`   Session:       ${SESSION_ID}`);
+console.log(`   Relay URL:     ${RELAY_WS_URL}`);
+console.log(`   Target Device: ${DEVICE_SERIAL || 'Default ADB device'}`);
+console.log(`   Status:        100% Silent, No Red Bar, Whole Screen`);
+console.log(`========================================================`);
 
 let ws: WebSocket | null = null;
 let isRunning = true;
+let telemetryTimer: NodeJS.Timeout | null = null;
 
 function connectWs() {
   ws = new WebSocket(RELAY_WS_URL);
 
   ws.on('open', () => {
     console.log('[ADB Bridge] Connected to Coach Relay WebSocket!');
+    startTelemetryLoop();
     captureLoop();
+  });
+
+  ws.on('message', (data: WebSocket.RawData) => {
+    try {
+      const msg = JSON.parse(data.toString());
+      if (msg.type === 'coach_cue') {
+        console.log(`[Coach Cue Received]: "${msg.message}"`);
+      }
+    } catch (_) {}
   });
 
   ws.on('error', (err) => {
@@ -24,8 +60,38 @@ function connectWs() {
 
   ws.on('close', () => {
     console.log('[ADB Bridge] WS closed, reconnecting in 2s...');
+    if (telemetryTimer) clearInterval(telemetryTimer);
     setTimeout(connectWs, 2000);
   });
+}
+
+function startTelemetryLoop() {
+  if (telemetryTimer) clearInterval(telemetryTimer);
+  let heartRate = 72;
+  telemetryTimer = setInterval(() => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    heartRate += Math.floor(Math.random() * 5) - 2;
+    if (heartRate < 65) heartRate = 65;
+    if (heartRate > 88) heartRate = 88;
+
+    const telemetry = {
+      type: 'telemetry',
+      sessionId: SESSION_ID,
+      data: {
+        heartRate,
+        stress: heartRate > 80 ? 'Elevated' : 'Balanced',
+        spO2: 98,
+        steps: 6280,
+        calories: 418,
+        battery: 85,
+        hydrationMl: 1250,
+        hydrationGoalMl: 2500,
+        breathingPhase: 'Inhale',
+        breathingProgress: 0.65,
+      },
+    };
+    ws.send(JSON.stringify(telemetry));
+  }, 1000);
 }
 
 async function captureLoop() {
@@ -36,11 +102,10 @@ async function captureLoop() {
         ws.send(frameBuffer);
       }
     } catch (err: any) {
-      // Small pause on error
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 150));
     }
-    // Rate limit ~15-20 FPS for optimal responsiveness
-    await new Promise((r) => setTimeout(r, 60));
+    // Dynamic throttle: smooth responsive stream
+    await new Promise((r) => setTimeout(r, 70));
   }
 }
 
@@ -75,6 +140,7 @@ connectWs();
 
 process.on('SIGINT', () => {
   isRunning = false;
+  if (telemetryTimer) clearInterval(telemetryTimer);
   if (ws) ws.close();
   process.exit(0);
 });

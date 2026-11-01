@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: ss
+    name: ss-eb5j
     runtime: node
     plan: free
     buildCommand: npm install && npm run build

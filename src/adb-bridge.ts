@@ -104,8 +104,8 @@ async function captureLoop() {
     } catch (err: any) {
       await new Promise((r) => setTimeout(r, 150));
     }
-    // Dynamic throttle: smooth responsive stream
-    await new Promise((r) => setTimeout(r, 70));
+    // Throttle to 10 FPS
+    await new Promise((r) => setTimeout(r, 100));
   }
 }
 

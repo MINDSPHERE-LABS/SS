@@ -6,7 +6,7 @@
     "start": "node dist/main.js",
     "stream:adb": "tsx src/adb-bridge.ts",
     "start:dev": "tsx watch src/main.ts",
-    "build": "tsc",
+    "build": "tsc && node -e \"const fs=require('fs'); fs.cpSync('public', 'dist', {recursive:true});\"",
     "start:prod": "node dist/main.js"
   },
   "dependencies": {

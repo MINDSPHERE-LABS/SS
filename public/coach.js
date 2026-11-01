@@ -42,6 +42,48 @@
 
   sessionLabel.textContent = `Session: ${sessionId}`;
 
+  // Relay WebSocket resolution & controls
+  const relayPill = document.getElementById('relayPill');
+  const relayLabel = document.getElementById('relayLabel');
+  let customRelay = urlParams.get('relay') || urlParams.get('ws') || localStorage.getItem('oneview_relay_url');
+
+  function getWsUrl() {
+    if (customRelay) {
+      const sep = customRelay.includes('?') ? '&' : '?';
+      return `${customRelay}${sep}role=coach&session=${encodeURIComponent(sessionId)}`;
+    }
+    // If hosted on a known static site (e.g. ss-crys.onrender.com), fallback to the Web Service relay
+    if (window.location.hostname === 'ss-crys.onrender.com') {
+      return `wss://ss-eb5j.onrender.com/ws?role=coach&session=${encodeURIComponent(sessionId)}`;
+    }
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}/ws?role=coach&session=${encodeURIComponent(sessionId)}`;
+  }
+
+  function updateRelayLabel(url) {
+    if (relayLabel) {
+      try {
+        const u = new URL(url.replace('wss://', 'https://').replace('ws://', 'http://'));
+        relayLabel.textContent = `Relay: ${u.host}`;
+      } catch (e) {
+        relayLabel.textContent = `Relay: Configured`;
+      }
+    }
+  }
+
+  if (relayPill) {
+    relayPill.addEventListener('click', () => {
+      const cur = customRelay || (window.location.hostname === 'ss-crys.onrender.com' ? 'wss://ss-eb5j.onrender.com/ws' : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`);
+      const entered = prompt('OneView WebSocket Relay Server URL:\n(e.g. wss://ss-eb5j.onrender.com/ws or wss://ss-crys.onrender.com/ws)', cur);
+      if (entered !== null && entered.trim() !== '') {
+        customRelay = entered.trim();
+        localStorage.setItem('oneview_relay_url', customRelay);
+        if (ws) ws.close();
+        connect();
+      }
+    });
+  }
+
   // WebSocket Connection
   let ws = null;
   let isAthleteConnected = false;
@@ -60,40 +102,47 @@
   setTimeout(resizeEcg, 100);
 
   function connect() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws?role=coach&session=${encodeURIComponent(sessionId)}`;
+    const wsUrl = getWsUrl();
+    updateRelayLabel(wsUrl);
 
-    ws = new WebSocket(wsUrl);
-    ws.binaryType = 'blob';
+    try {
+      ws = new WebSocket(wsUrl);
+      ws.binaryType = 'blob';
 
-    ws.onopen = () => {
-      console.log('Connected to OneView Coach Relay Server');
-    };
+      ws.onopen = () => {
+        console.log('Connected to OneView Coach Relay Server:', wsUrl);
+        if (relayLabel) relayLabel.style.color = '#00e5ff';
+      };
 
-    ws.onmessage = async (event) => {
-      if (event.data instanceof Blob) {
-        // Binary JPEG frame
-        handleBinaryFrame(event.data);
-      } else {
-        // JSON Telemetry or status
-        try {
-          const msg = JSON.parse(event.data);
-          handleJsonMessage(msg);
-        } catch (err) {
-          console.error('Failed to parse incoming JSON:', err);
+      ws.onmessage = async (event) => {
+        if (event.data instanceof Blob) {
+          // Binary JPEG frame
+          handleBinaryFrame(event.data);
+        } else {
+          // JSON Telemetry or status
+          try {
+            const msg = JSON.parse(event.data);
+            handleJsonMessage(msg);
+          } catch (err) {
+            console.error('Failed to parse incoming JSON:', err);
+          }
         }
-      }
-    };
+      };
 
-    ws.onclose = () => {
-      console.log('WebSocket connection closed, retrying in 2s...');
-      updateAthleteStatus(false);
+      ws.onclose = () => {
+        console.log('WebSocket connection closed, retrying in 2s...');
+        updateAthleteStatus(false);
+        setTimeout(connect, 2000);
+      };
+
+      ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        if (relayLabel) relayLabel.style.color = '#ff4b4b';
+      };
+    } catch (err) {
+      console.error('Failed to create WebSocket:', err);
       setTimeout(connect, 2000);
-    };
-
-    ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
-    };
+    }
   }
 
   // Handle incoming JPEG frame

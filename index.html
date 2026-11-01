@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OneView Vital • Coach Live View</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="coach.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="top-nav">
+    <div class="nav-left">
+      <div class="logo">
+        <span class="logo-main">ONEVIEW</span>
+        <span class="logo-accent">COACH</span>
+      </div>
+      <div class="session-pill">
+        <span class="session-dot"></span>
+        <span id="sessionLabel">Session: oneview-live</span>
+      </div>
+      <div class="session-pill" id="relayPill" style="cursor: pointer;" title="Click to view or edit WebSocket Relay Server">
+        <span class="session-dot" style="background: #00e5ff;"></span>
+        <span id="relayLabel">Relay: Auto</span>
+      </div>
+    </div>
+
+    <div class="nav-center">
+      <div id="connectionBadge" class="status-badge waiting">
+        <span class="pulse-indicator"></span>
+        <span id="connectionText">Waiting for Athlete...</span>
+      </div>
+    </div>
+
+    <div class="nav-right">
+      <div class="fps-pill" id="fpsPill">
+        <span class="fps-val" id="fpsValue">0</span>
+        <span class="fps-lbl">FPS</span>
+      </div>
+      <button class="btn btn-secondary" id="copyLinkBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+        <span>Copy Link</span>
+      </button>
+      <button class="btn btn-primary" id="fullscreenBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+        <span>Fullscreen</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Grid -->
+  <main class="dashboard-grid">
+    <!-- Left Column: Screen Share Feed -->
+    <section class="screen-viewport-card">
+      <div class="viewport-header">
+        <div class="viewport-title">
+          <span class="live-dot"></span>
+          <span>Athlete Screen Stream</span>
+          <span class="feed-resolution" id="feedResolution">Waiting</span>
+        </div>
+        <div class="viewport-actions">
+          <button class="icon-btn" id="snapshotBtn" title="Take Snapshot">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="canvas-container" id="canvasContainer">
+        <!-- Waiting placeholder -->
+        <div class="waiting-placeholder" id="waitingPlaceholder">
+          <div class="radar-box">
+            <div class="radar-circle c1"></div>
+            <div class="radar-circle c2"></div>
+            <div class="radar-circle c3"></div>
+            <div class="phone-icon-center">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+            </div>
+          </div>
+          <h3>Waiting for Screen Share</h3>
+          <p>Tap <strong>"Share to Coach"</strong> inside the OneView Vital app to start streaming.</p>
+          <div class="hint-tag">Relay: WebSocket &bull; Ultra Low Latency</div>
+        </div>
+
+        <!-- The Canvas rendering JPEG frames -->
+        <canvas id="screenCanvas"></canvas>
+      </div>
+    </section>
+
+    <!-- Right Column: Coach Telemetry HUD & Feedback -->
+    <aside class="coach-sidebar">
+      <!-- Vitals Card -->
+      <div class="hud-card vitals-card">
+        <div class="hud-card-header">
+          <span class="hud-label">LIVE BIOMETRICS</span>
+          <span class="stress-badge relaxed" id="stressBadge">RELAXED</span>
+        </div>
+        <div class="hr-display-row">
+          <div class="hr-big">
+            <span class="hr-num" id="hrValue">--</span>
+            <span class="hr-unit">BPM</span>
+          </div>
+          <div class="hr-pulse-icon">
+            <svg class="heart-svg" id="heartSvg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </div>
+        </div>
+        
+        <!-- Live ECG Canvas -->
+        <div class="ecg-container">
+          <canvas id="ecgCanvas" height="50"></canvas>
+        </div>
+      </div>
+
+      <!-- Quick Metrics 2x2 Grid -->
+      <div class="metrics-grid">
+        <div class="metric-mini-card">
+          <div class="mini-label">STEPS</div>
+          <div class="mini-value" id="stepsValue">--</div>
+          <div class="mini-sub" id="stepsGoal">Goal: 10,000</div>
+        </div>
+        <div class="metric-mini-card">
+          <div class="mini-label">CALORIES</div>
+          <div class="mini-value" id="caloriesValue">--</div>
+          <div class="mini-sub" id="caloriesGoal">Goal: 650 kcal</div>
+        </div>
+        <div class="metric-mini-card">
+          <div class="mini-label">HYDRATION</div>
+          <div class="mini-value" id="hydrationValue">--</div>
+          <div class="mini-sub" id="hydrationGoal">Goal: 2500 ml</div>
+        </div>
+        <div class="metric-mini-card">
+          <div class="mini-label">RECOVERY</div>
+          <div class="mini-value" id="recoveryValue">--</div>
+          <div class="mini-sub">Body Battery</div>
+        </div>
+      </div>
+
+      <!-- Breathing Coach Widget -->
+      <div class="hud-card breathing-card">
+        <div class="hud-card-header">
+          <span class="hud-label">BREATHING PACE</span>
+          <span class="phase-tag" id="breathingPhase">IDLE</span>
+        </div>
+        <div class="breathing-bar-track">
+          <div class="breathing-bar-fill" id="breathingProgress"></div>
+        </div>
+      </div>
+
+      <!-- Coach Real-time Cues & Feedback -->
+      <div class="hud-card cues-card">
+        <div class="hud-card-header">
+          <span class="hud-label">COACH DIRECT CUE</span>
+          <span class="cues-hint">Pings Athlete Phone</span>
+        </div>
+        <div class="cues-buttons-grid">
+          <button class="cue-btn" data-cue="👏 Great form! Keep it up!">👏 Great form!</button>
+          <button class="cue-btn" data-cue="⚡ Increase pace slightly!">⚡ Pick up pace</button>
+          <button class="cue-btn" data-cue="🧘 Take a slow deep breath">🧘 Deep breath</button>
+          <button class="cue-btn" data-cue="💧 Rest & Hydrate!">💧 Drink water</button>
+        </div>
+        <div class="custom-cue-row">
+          <input type="text" id="customCueInput" placeholder="Send coaching message..." maxlength="80">
+          <button class="btn btn-send" id="sendCustomCueBtn">Send</button>
+        </div>
+        <div class="cues-history" id="cuesHistory">
+          <!-- Sent feedback items appear here -->
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="coach.js"></script>
+</body>
+</html>
+

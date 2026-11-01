@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "OneView Vital Live Screen Sharing Relay and Coach Web Dashboard",
   "scripts": {
-    "start": "tsx src/main.ts",
+    "start": "node dist/main.js",
     "stream:adb": "tsx src/adb-bridge.ts",
     "start:dev": "tsx watch src/main.ts",
     "build": "tsc",
@@ -17,6 +17,7 @@
     "@nestjs/websockets": "^10.3.3",
     "reflect-metadata": "^0.2.1",
     "rxjs": "^7.8.1",
+    "tsx": "^4.7.1",
     "ws": "^8.16.0"
   },
   "devDependencies": {

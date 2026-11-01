@@ -69,3 +69,4 @@ npm run stream:adb
 - **Backend:** NestJS, Express, ws (WebSocket Server)
 - **Frontend:** Vanilla HTML5 Canvas, modern CSS variables, responsive dark-mode UI
 - **Companion Tooling:** ADB, tsx
+

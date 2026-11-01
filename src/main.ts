@@ -18,8 +18,9 @@ async function bootstrap() {
 
   const relayService = app.get(RelayService);
 
-  // Start HTTP server on port 3000
-  const server = await app.listen(3000, '0.0.0.0');
+  // Bind to Render assigned PORT (or 3000 locally) on 0.0.0.0
+  const port = process.env.PORT || 3000;
+  await app.listen(port, '0.0.0.0');
   const httpServer = app.getHttpServer();
 
   // Attach WebSocket server on /ws
@@ -59,11 +60,9 @@ async function bootstrap() {
   });
 
   console.log(`====================================================`);
-  console.log(`🚀 OneView Coach Relay Server running at:`);
-  console.log(`   Local:   http://localhost:3000`);
-  console.log(`   Network: http://192.168.29.25:3000`);
-  console.log(`   WebSocket: ws://192.168.29.25:3000/ws`);
-  console.log(`   Coach Portal: http://192.168.29.25:3000/?session=oneview-live`);
+  console.log(`🚀 OneView Coach Relay Server running on port ${port}`);
+  console.log(`   Coach Portal: https://ss-eb5j.onrender.com/?session=oneview-live`);
+  console.log(`   Local URL:    http://localhost:${port}/?session=oneview-live`);
   console.log(`====================================================`);
 }
 

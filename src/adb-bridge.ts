@@ -2,7 +2,7 @@ import { spawn } from 'child_process';
 import WebSocket from 'ws';
 
 const SESSION_ID = process.env.SESSION_ID || 'oneview-live';
-const RELAY_WS_URL = process.env.RELAY_WS_URL || `ws://localhost:3000/ws?role=athlete&session=${SESSION_ID}`;
+const RELAY_WS_URL = process.env.RELAY_WS_URL || `wss://ss-eb5j.onrender.com/ws?role=athlete&session=${SESSION_ID}`;
 const DEVICE_SERIAL = process.env.ANDROID_SERIAL || '';
 
 console.log(`[ADB Bridge] Starting Whole Screen ADB Bridge for session [${SESSION_ID}]...`);
